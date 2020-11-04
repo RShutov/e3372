@@ -2,12 +2,17 @@
 
 import sys
 import pprint
-import requests
-import xmltodict
+import huaweisms.api.user
+import keyring
+import getpass
+from huaweisms.api.common import (
+    post_to_url,
+    get_from_url,
+    ApiCtx,
+)
 
 class HuaweiE3372(object):
   BASE_URL = 'http://{host}'
-  COOKIE_URL = '/html/index.html'
   XML_APIS = [
     '/api/device/information',
     '/api/device/signal',
@@ -15,26 +20,27 @@ class HuaweiE3372(object):
     '/api/monitoring/traffic-statistics',
     '/api/dialup/connection',
     '/api/global/module-switch',
-    '/api/net/current-plmn',
     '/api/net/net-mode',
   ]
-  session = None
 
-  def __init__(self,host='192.168.8.1'):
+  def __init__(self, user, password, host='192.168.8.1'):
     self.host = host
     self.base_url = self.BASE_URL.format(host=host)
-    self.session = requests.Session()
-    # get a session cookie by requesting the COOKIE_URL
-    r = self.session.get(self.base_url + self.COOKIE_URL)
+    self.ctx = huaweisms.api.user.quick_login(user, password)
 
-  def get(self,path):
-    return xmltodict.parse(self.session.get(self.base_url + path).text).get('response',None)
+  def get(self, url):
+    # type: (ApiCtx) -> dict
+    req = get_from_url(self.base_url + url, self.ctx)
+    return req['response']
 
 def main():
-  e3372 = HuaweiE3372()
+  user = input('Username: ')
+  password = getpass.getpass()
+  e3372 = HuaweiE3372(user, password)
   for path in e3372.XML_APIS:
-    for key,value in e3372.get(path).items():
-      print(key,value)
+    response = e3372.get(path)
+    for key,value in response.items():
+      print(key, value)
 
 if __name__ == "__main__":
   main()
